@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240" viewBox="0 0 640 240" font-family="monospace">
+  <rect width="640" height="240" fill="#0d1418"/>
+  <style>
+    .box { fill: none; stroke: #35ff70; stroke-width: 2; rx: 8; }
+    .lbl { fill: #9af5b1; font-size: 15px; }
+    .sub { fill: #4f7a5d; font-size: 11px; }
+    .arr { stroke: #56d4dd; stroke-width: 2; fill: none; marker-end: url(#a); }
+    .t   { fill: #56d4dd; font-size: 11px; }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#56d4dd"/>
+    </marker>
+  </defs>
+  <rect class="box" x="20" y="90" width="160" height="60" rx="8"/>
+  <text class="lbl" x="52" y="115">browser</text>
+  <text class="sub" x="36" y="133">fake terminal UI</text>
+  <path class="arr" d="M 185 120 H 255"/>
+  <text class="t" x="192" y="110">GET /api/…</text>
+  <rect class="box" x="260" y="90" width="160" height="60" rx="8"/>
+  <text class="lbl" x="292" y="115">node server</text>
+  <text class="sub" x="276" y="133">read-only endpoints</text>
+  <path class="arr" d="M 425 120 H 495"/>
+  <text class="t" x="432" y="110">fs.readFile</text>
+  <rect class="box" x="500" y="90" width="120" height="60" rx="8"/>
+  <text class="lbl" x="528" y="115">pages/</text>
+  <text class="sub" x="516" y="133">*.md + images</text>
+  <text class="sub" x="20" y="30">no POST routes · no shell · paths jailed to pages/</text>
+</svg>
