@@ -327,22 +327,70 @@
   // ---------------------------------------------------------------- input loop
   // The visible <input> IS the command line — no mirrored text node, so the
   // IME owns its buffer and Backspace/composition behave natively.
-  function suggest() {
-    const v = cmdInput.value;
-    const m = v.match(/^(cat|read|open|show|tag)\s+(\S*)$/i);
-    if (!m) return;
-    const [cmd, frag] = m;
-    const pool = /^tag$/i.test(cmd)
-      ? [...new Set(posts.flatMap((p) => p.tags))]
-      : posts.map((p) => p.file.replace(/\.md$/i, ''));
-    const hits = pool.filter((x) => x.toLowerCase().startsWith(frag.toLowerCase()));
-    if (!hits.length) return;
-    if (hits.length === 1) {
-      cmdInput.value = `${cmd} ${hits[0]}`;
-    } else {
-      echo(v);
-      print(hits.map((h) => `<span class="cy">${esc(h)}</span>`).join('   '));
+
+  // --- Tab completion, bash-style -------------------------------------------
+  // * first word      -> complete command names
+  // * cat/read/...    -> complete page names
+  // * tag             -> complete tag names
+  // unique match      -> insert it + a trailing space
+  // several matches   -> insert the longest common prefix and list them;
+  //                      pressing Tab again cycles through the candidates.
+  let comp = null; // { line, list, idx } — state for cycling; cleared on typing
+
+  function commonPrefix(list) {
+    let p = list[0];
+    for (const s of list) {
+      while (p && s.toLowerCase().indexOf(p.toLowerCase()) !== 0) p = p.slice(0, -1);
     }
+    return p;
+  }
+
+  function completePool(cmdWord, isFirstWord) {
+    if (isFirstWord) return Object.keys(COMMANDS).sort();
+    if (/^(cat|read|open|show)$/i.test(cmdWord)) {
+      return posts.map((p) => p.file.replace(/\.md$/i, '')).sort();
+    }
+    if (/^tag$/i.test(cmdWord)) return [...new Set(posts.flatMap((p) => p.tags))].sort();
+    return null;
+  }
+
+  function tabComplete() {
+    const v = cmdInput.value;
+    const lsp = v.lastIndexOf(' ');
+    const word = lsp === -1 ? v : v.slice(lsp + 1);   // word being completed
+    const head = lsp === -1 ? '' : v.slice(0, lsp + 1); // everything before it (incl. space)
+    const cmdWord = v.split(/\s+/)[0] || '';
+    const isFirstWord = lsp === -1;
+
+    const pool = completePool(cmdWord, isFirstWord);
+    if (!pool) return;
+    const matches = pool.filter((x) => x.toLowerCase().startsWith(word.toLowerCase()));
+    if (!matches.length) return;
+
+    const lineFor = (w) => head + w;
+
+    if (matches.length === 1) {
+      cmdInput.value = lineFor(matches[0]) + ' '; // unique: bash appends a space
+      comp = null;
+      return;
+    }
+
+    // repeated Tab on the same line -> cycle candidates
+    if (comp && comp.line === v) {
+      comp.idx = (comp.idx + 1) % matches.length;
+      if (comp.idx === 0) { // wrapped around: show the options again, like bash
+        print('<span class="dim">' + matches.map((h) => `<span class="cy">${esc(h)}</span>`).join('   ') + '</span>');
+      }
+      cmdInput.value = lineFor(matches[comp.idx]);
+      comp.line = cmdInput.value;
+      return;
+    }
+
+    // first Tab -> insert the longest common prefix, then list the options
+    const p = commonPrefix(matches);
+    cmdInput.value = lineFor(p.length > word.length ? p : word);
+    comp = { line: cmdInput.value, list: matches, idx: -1 };
+    print('<span class="dim">' + matches.map((h) => `<span class="cy">${esc(h)}</span>`).join('   ') + '</span>');
   }
 
   cmdInput.addEventListener('keydown', (e) => {
@@ -360,7 +408,7 @@
       else { histIdx = history.length; cmdInput.value = ''; }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      suggest();
+      tabComplete();
     } else if (e.key === 'l' && e.ctrlKey) {
       e.preventDefault();
       output.innerHTML = '';
@@ -376,6 +424,8 @@
   const focusInput = () => cmdInput.focus({ preventScroll: true });
   screen.addEventListener('mouseup', focusInput);
   document.addEventListener('click', focusInput);
+  // any typing invalidates an in-progress completion/cycle
+  cmdInput.addEventListener('input', () => { comp = null; });
 
   // Safety net: the document itself must never scroll. If the browser ever
   // scrolls the root element (e.g. to reveal a focused element), snap back.
