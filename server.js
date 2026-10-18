@@ -1,5 +1,5 @@
 /**
- * ttu-blog — terminal-styled read-only Markdown blog.
+ * tty-blog — terminal-styled read-only Markdown blog.
  *
  * Security model:
  *  - The visitor never touches a real shell. The terminal is a pure frontend
@@ -9,7 +9,7 @@
  *  - There are no POST/PUT/DELETE routes at all: writing is impossible.
  *
  * Sub-location support:
- *  - Set BASE_PATH (e.g. "/ttu-blog") when running behind a reverse proxy
+ *  - Set BASE_PATH (e.g. "/tty-blog") when running behind a reverse proxy
  *    that mounts the app under a prefix. All routes are mounted there, and a
  *    <base href> tag is injected into index.html so the frontend's relative
  *    URLs keep working. Leave empty to serve at the root.
@@ -22,7 +22,7 @@ const matter = require('gray-matter');
 const PORT = process.env.PORT || 3000;
 const PAGES_DIR = path.resolve(__dirname, 'pages');
 
-/** Normalise BASE_PATH: '' or '/ttu-blog' (leading slash, no trailing slash). */
+/** Normalise BASE_PATH: '' or '/tty-blog' (leading slash, no trailing slash). */
 function normalizeBase(raw) {
   if (!raw || raw === '/') return '';
   let b = String(raw).trim();
@@ -163,6 +163,6 @@ if (BASE_PATH) {
 }
 
 app.listen(PORT, () => {
-  console.log(`ttu-blog listening on http://localhost:${PORT}${BASE_PATH}/`);
+  console.log(`tty-blog listening on http://localhost:${PORT}${BASE_PATH}/`);
   console.log(`pages directory: ${PAGES_DIR}`);
 });

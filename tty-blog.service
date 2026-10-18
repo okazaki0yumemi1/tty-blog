@@ -1,5 +1,5 @@
 [Unit]
-Description=ttu-blog — terminal-styled read-only Markdown blog
+Description=tty-blog — terminal-styled read-only Markdown blog
 After=network-online.target
 Wants=network-online.target
 
@@ -7,13 +7,13 @@ Wants=network-online.target
 Type=simple
 User=YOUR_USER_NAME
 Group=YOUR_USER_NAME
-WorkingDirectory=/path/to/your/ttu-blog
+WorkingDirectory=/path/to/your/tty-blog
 ExecStart=/usr/bin/node server.js
 
 # --- configuration (edit as needed) ---
 Environment=PORT=3000
-# Leave empty when the reverse proxy strips the /ttu-blog prefix (current
-# setup). Set to /ttu-blog only if the proxy forwards the prefix unchanged.
+# Leave empty when the reverse proxy strips the /tty-blog prefix (current
+# setup). Set to /tty-blog only if the proxy forwards the prefix unchanged.
 Environment=BASE_PATH=
 
 Restart=always
@@ -32,7 +32,7 @@ LockPersonality=true
 
 # The blog never writes to disk (posts are edited by you, not the process),
 # so a read-only home is fine. If you later add a feature that writes, add:
-# ReadWritePaths=/path/to/your/ttu-blog/pages
+# ReadWritePaths=/path/to/your/tty-blog/pages
 
 [Install]
 WantedBy=multi-user.target

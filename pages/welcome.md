@@ -1,5 +1,5 @@
 ---
-title: Welcome to ttu-blog
+title: Welcome to tty-blog
 date: 2026-10-17
 tags: [meta, help]
 description: What this place is and how to drive the terminal.

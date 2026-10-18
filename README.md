@@ -1,4 +1,4 @@
-# ttu-blog
+# tty-blog
 
 A blog that renders Markdown files in a **terminal-styled web UI**. Visitors
 see a bash-like prompt and read posts with familiar commands — but nothing
@@ -57,7 +57,7 @@ Tab-completion, ↑/↓ history, Ctrl-C / Ctrl-L all work.
   `pages/`; post reads only accept `.md` files, `/files/` only serves image
   extensions, and null bytes / traversal sequences are rejected.
 
-## Running under a sub-location (e.g. `https://hostname.example.com/ttu-blog`)
+## Running under a sub-location (e.g. `https://hostname.example.com/tty-blog`)
 
 The frontend derives its own base path from the browser URL (inline script in
 `index.html` head), so **assets and API calls work through any prefix without
@@ -66,11 +66,11 @@ frontend changes**. The server just needs to receive the routes:
 **Mode A — proxy keeps the prefix** → run with `BASE_PATH` so routes are mounted there:
 
 ```bash
-BASE_PATH=/ttu-blog npm start
+BASE_PATH=/tty-blog npm start
 ```
 
 ```nginx
-location /ttu-blog/ {
+location /tty-blog/ {
   proxy_pass http://127.0.0.1:3000;      # no trailing slash: prefix is kept
   proxy_set_header Host $host;
 }
@@ -80,7 +80,7 @@ location /ttu-blog/ {
 else to configure:
 
 ```nginx
-location /ttu-blog/ {
+location /tty-blog/ {
   proxy_pass http://127.0.0.1:3000/;     # trailing slash: prefix is stripped
   proxy_set_header Host $host;
 }
@@ -89,10 +89,10 @@ location /ttu-blog/ {
 Caddy:
 
 ```
-handle /ttu-blog/* {
+handle /tty-blog/* {
   reverse_proxy 127.0.0.1:3000           # keeps prefix → use Mode A (BASE_PATH)
 }
-# or: handle_path /ttu-blog/* { reverse_proxy 127.0.0.1:3000 }  → Mode B
+# or: handle_path /tty-blog/* { reverse_proxy 127.0.0.1:3000 }  → Mode B
 ```
 
 ## Layout

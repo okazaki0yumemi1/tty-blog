@@ -1,5 +1,5 @@
 /**
- * ttu-blog terminal UI.
+ * tty-blog terminal UI.
  *
  * This is a pure frontend simulation. There is no real shell anywhere:
  * commands are matched against a fixed allow-list and can only call the
@@ -13,7 +13,7 @@
   const cmdInput = document.getElementById('cmdInput');
 
   // All URLs are relative; the <base href> tag injected by server.js resolves
-  // them correctly whether the app is served at "/" or "/ttu-blog/".
+  // them correctly whether the app is served at "/" or "/tty-blog/".
   const url = (...parts) => new URL(parts.join('/'), document.baseURI).href;
 
   let posts = [];          // cached from /api/posts
@@ -42,7 +42,7 @@
   const scrollDown = () => { screen.scrollTop = screen.scrollHeight; };
 
   const promptHtml = () =>
-    '<span class="prompt"><span class="p-user">guest</span>@<span class="p-host">ttu-blog</span>:<span class="p-path">~</span><span class="p-dollar">$</span></span>';
+    '<span class="prompt"><span class="p-user">guest</span>@<span class="p-host">tty-blog</span>:<span class="p-path">~</span><span class="p-dollar">$</span></span>';
 
   function echo(cmd) {
     output.appendChild(el('div', 'echo-line', promptHtml() + esc(cmd)));
