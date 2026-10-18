@@ -1,0 +1,9 @@
+# Ignore all posts
+pages/*
+pages/assets/*
+
+# Leave examples
+!pages/hello-world.md
+!pages/markdown-demo.md 
+!pages/welcome.md.md
+!pages/assets/architecture.svg
