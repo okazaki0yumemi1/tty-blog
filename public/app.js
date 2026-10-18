@@ -17,6 +17,9 @@
   const url = (...parts) => new URL(parts.join('/'), document.baseURI).href;
 
   let posts = [];          // cached from /api/posts
+  let dirs = new Set();    // directories derived from post paths (posix, relative to pages/)
+  let cwd = '';            // current folder for ls/cd/cat, '' = pages root
+  let prevCwd = '';        // for `cd -`
   let lastList = [];       // what `ls` last showed (for numeric `cat 3`)
   let history = [];        // command history
   let histIdx = -1;
@@ -26,6 +29,25 @@
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  /** Join a base dir with a path, resolving "." and ".." segments safely. */
+  function resolvePath(base, p) {
+    const fromRoot = p.startsWith('/');
+    const segs = (fromRoot ? [] : base ? base.split('/') : []).concat(p.split('/'));
+    const out = [];
+    for (const s of segs) {
+      if (!s || s === '.') continue;
+      if (s === '..') out.pop();
+      else out.push(s);
+    }
+    return out.join('/');
+  }
+
+  /** Immediate subdirectories of a folder, from the derived dirs set. */
+  function subDirs(of) {
+    const base = of ? of + '/' : '';
+    return [...dirs].filter((d) => d.startsWith(base) && d.slice(base.length).indexOf('/') === -1).sort();
+  }
 
   const el = (tag, cls, html) => {
     const n = document.createElement(tag);
@@ -41,8 +63,13 @@
 
   const scrollDown = () => { screen.scrollTop = screen.scrollHeight; };
 
+  const promptPath = () => (cwd ? '~/' + cwd : '~');
   const promptHtml = () =>
-    '<span class="prompt"><span class="p-user">guest</span>@<span class="p-host">tty-blog</span>:<span class="p-path">~</span><span class="p-dollar">$</span></span>';
+    '<span class="prompt"><span class="p-user">guest</span>@<span class="p-host">tty-blog</span>:<span class="p-path">' +
+    esc(promptPath()) + '</span><span class="p-dollar">$</span></span>';
+
+  const promptPathEl = document.querySelector('#inputLine .p-path');
+  const updatePrompt = () => { promptPathEl.textContent = promptPath(); };
 
   function echo(cmd) {
     output.appendChild(el('div', 'echo-line', promptHtml() + esc(cmd)));
@@ -53,6 +80,17 @@
       const r = await fetch(url('api', 'posts'));
       const data = await r.json();
       posts = data.posts || [];
+      // derive the folder tree from post paths (dirs that hold posts)
+      dirs = new Set();
+      for (const p of posts) {
+        const parts = p.file.split('/');
+        let acc = '';
+        for (let i = 0; i < parts.length - 1; i++) {
+          acc = acc ? acc + '/' + parts[i] : parts[i];
+          dirs.add(acc);
+        }
+      }
+      updatePrompt();
     } catch {
       print('<span class="err">error: could not reach the blog API</span>');
     }
@@ -80,15 +118,15 @@
   }
 
   const HELP = [
-    ['ls | list', 'list all blog posts'],
-    ['cat <page> | read <page>', 'open and read a post (name, number from ls, or path.md)'],
+    ['ls | list', 'list folders and posts in the current folder'],
+    ['cd <folder>', 'enter a folder (cd .. up, cd - back, cd = root)'],
+    ['cat <page> | read <page>', 'open a post (name, number from ls, or path)'],
     ['tags', 'list all tags'],
     ['tag <name>', 'list posts with a given tag'],
     ['search <query>', 'search post titles, tags and bodies'],
-    ['open <n>', 'alias of cat, takes the number from the last listing'],
     ['clear', 'clear the screen'],
     ['theme [green|amber|blue]', 'switch the CRT colour'],
-    ['whoami', 'who are you?'],
+    ['pwd | whoami', 'where/who am I?'],
     ['help', 'show this help'],
   ];
 
@@ -112,8 +150,9 @@
     const rows = list.map((p, i) => {
       const mark = highlight === p.file ? '<span class="ok">▶</span> ' : '&nbsp;&nbsp;';
       const tags = p.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join(' ') || '<span class="dim">—</span>';
+      const short = shortName(p);
       return `<tr><td class="dim">${String(i + 1).padStart(2)}</td>` +
-        `<td class="name">${mark}${esc(p.file.replace(/\.md$/i, ''))}</td>` +
+        `<td class="name">${mark}${esc(short)}</td>` +
         `<td>${esc(p.title)}</td><td class="dim">${fmtDate(p.date)}</td><td>${tags}</td></tr>`;
     }).join('');
     print(`<table class="ls"><tr><th>#</th><th>page</th><th>title</th><th>date</th><th>tags</th></tr>${rows}</table>`);
@@ -123,15 +162,71 @@
   async function cmdLs(args) {
     await refreshPosts();
     if (args[0] === '-t' || args[0] === '--tags') return cmdTags();
-    renderTable(posts);
+    const inCwd = posts.filter((p) => {
+      const d = p.file.includes('/') ? p.file.slice(0, p.file.lastIndexOf('/')) : '';
+      return d === cwd;
+    });
+    const subs = subDirs(cwd);
+    if (!inCwd.length && !subs.length) {
+      print('<span class="dim">nothing here.</span>');
+      lastList = [];
+      return;
+    }
+    if (subs.length) {
+      print('  ' + subs.map((d) => `<span class="dir">${esc(d)}/</span>`).join('   ') +
+        '  <span class="dim">← cd &lt;name&gt;</span>');
+    }
+    if (inCwd.length) {
+      renderTable(inCwd);
+    } else {
+      lastList = [];
+      if (subs.length) print('<span class="dim">no posts in this folder — cd into a folder above</span>');
+    }
+  }
+
+  async function cmdCd(args) {
+    await refreshPosts();
+    let t = args.join(' ').trim().replace(/\/+$/, '');
+    if (!t || t === '~') {
+      prevCwd = cwd; cwd = ''; updatePrompt();
+      return;
+    }
+    if (t === '-') {
+      [cwd, prevCwd] = [prevCwd, cwd];
+      updatePrompt();
+      print(`<span class="dim">${esc(promptPath())}</span>`);
+      return;
+    }
+    t = t.replace(/^~\/?/, '/');
+    const target = resolvePath(cwd, t);
+    if (target === '' || dirs.has(target)) {
+      prevCwd = cwd; cwd = target; updatePrompt();
+      return;
+    }
+    if (posts.some((p) => p.file.replace(/\.md$/i, '').toLowerCase() === target.toLowerCase())) {
+      print(`<span class="err">cd: ${esc(t)}: not a directory</span> <span class="dim">— it is a post; try: cat ${esc(t)}</span>`);
+      return;
+    }
+    print(`<span class="err">cd: ${esc(t)}: No such file or directory</span>`);
+  }
+
+  // display/completion name of a post relative to the current folder
+  function shortName(p) {
+    const stem = p.file.replace(/\.md$/i, '');
+    return cwd && stem.startsWith(cwd + '/') ? stem.slice(cwd.length + 1) : stem;
   }
 
   function findPost(query) {
-    const q = query.toLowerCase().replace(/\.md$/, '');
-    return posts.find((p) => {
-      const stem = p.file.replace(/\.md$/i, '').toLowerCase();
-      return stem === q || p.file.toLowerCase() === q + '.md';
-    });
+    const q = query.toLowerCase().replace(/\.md$/, '').replace(/\/+$/, '');
+    const key = (p) => p.file.replace(/\.md$/i, '').toLowerCase();
+    return posts.find((p) => key(p) === q || shortName(p).toLowerCase() === q);
+  }
+
+  function findPostFuzzy(query) {
+    const q = query.toLowerCase();
+    return findPost(q) || posts.find((p) =>
+      key2(p).includes(q) || shortName(p).toLowerCase().includes(q));
+    function key2(p) { return p.file.replace(/\.md$/i, '').toLowerCase(); }
   }
 
   // Rewrite relative image src in rendered markdown to go through the
@@ -190,7 +285,7 @@
       post = lastList[parseInt(q, 10) - 1];
     } else {
       await refreshPosts();
-      post = findPost(q) || posts.find((p) => p.file.replace(/\.md$/i, '').toLowerCase().includes(q.toLowerCase()));
+      post = findPostFuzzy(q);
     }
     if (!post) {
       print(`<span class="err">cat: ${esc(q)}: no such page</span> <span class="dim">— try \`ls\`</span>`);
@@ -294,10 +389,10 @@
     cls: () => { output.innerHTML = ''; },
     theme: cmdTheme,
     whoami: () => print('<span class="ok">guest</span> <span class="dim">— a visitor of a read-only blog. You can read, you cannot write. 🙂</span>'),
-    pwd: () => print('/home/guest <span class="dim">(simulated — there is no real filesystem here)</span>'),
+    pwd: () => print('/home/guest' + (cwd ? '/' + esc(cwd) : '') + ' <span class="dim">(simulated — there is no real filesystem here)</span>'),
     date: () => print(new Date().toString()),
     exit: () => print('<span class="dim">There is no place like home… just close the tab. 🙂</span> <span class="err">(this terminal was never real anyway)</span>'),
-    cd: () => print('<span class="dim">~/ is the only directory you need. Everything is in \`ls\`.</span>'),
+    cd: cmdCd,
     man: (a) => a.length ? run('help') : cmdHelp(),
   };
 
@@ -347,9 +442,14 @@
 
   function completePool(cmdWord, isFirstWord) {
     if (isFirstWord) return Object.keys(COMMANDS).sort();
+    const base = cwd ? cwd + '/' : '';
     if (/^(cat|read|open|show)$/i.test(cmdWord)) {
-      return posts.map((p) => p.file.replace(/\.md$/i, '')).sort();
+      return posts.map((p) => {
+        const stem = p.file.replace(/\.md$/i, '');
+        return stem.startsWith(base) ? stem.slice(base.length) : stem;
+      }).sort();
     }
+    if (/^cd$/i.test(cmdWord)) return subDirs(cwd).map((d) => d.slice(base.length));
     if (/^tag$/i.test(cmdWord)) return [...new Set(posts.flatMap((p) => p.tags))].sort();
     return null;
   }

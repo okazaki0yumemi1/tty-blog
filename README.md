@@ -35,7 +35,8 @@ Post body in Markdown — images, code, tables, everything.
 
 | command | description |
 | --- | --- |
-| `ls` / `list` | list all posts |
+| `ls` / `list` | list folders and posts in the current folder |
+| `cd <folder>` | enter a folder (`cd ..` up, `cd -` previous, `cd` = root) |
 | `cat <page>` / `read <page>` | open a post (name, path, or number from `ls`) |
 | `tags` | list tags with counts |
 | `tag <name>` | filter posts by tag |

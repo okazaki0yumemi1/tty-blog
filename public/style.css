@@ -136,6 +136,7 @@ body {
 }
 
 /* ---------- ls table ---------- */
+.dir { color: #7aa2f7; font-weight: 600; }
 table.ls { border-collapse: collapse; margin: 4px 0 8px; }
 table.ls th, table.ls td {
   text-align: left;
