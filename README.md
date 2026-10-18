@@ -58,7 +58,7 @@ Tab-completion, ↑/↓ history, Ctrl-C / Ctrl-L all work.
   `pages/`; post reads only accept `.md` files, `/files/` only serves image
   extensions, and null bytes / traversal sequences are rejected.
 
-## Running under a sub-location (e.g. `https://hostname.example.com/tty-blog`)
+## Running under a sub-location (e.g. `https://example.com/tty-blog`)
 
 The frontend derives its own base path from the browser URL (inline script in
 `index.html` head), so **assets and API calls work through any prefix without

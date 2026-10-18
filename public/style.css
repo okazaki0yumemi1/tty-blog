@@ -37,7 +37,7 @@ body {
 }
 
 .terminal-window {
-  width: min(1000px, 100%);
+  width: min(1280px, 100%);
   height: min(88dvh, 900px); /* fits inside the viewport, so nothing to scroll */
   display: flex;
   flex-direction: column;
@@ -149,7 +149,7 @@ table.ls td.name { color: var(--cyan); }
 table.ls td.tag { color: var(--magenta); }
 
 /* ---------- rendered markdown ---------- */
-.md { margin: 6px 0 14px; max-width: 80ch; }
+.md { margin: 6px 0 14px; max-width: 100%; }
 .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
   color: var(--accent);
   text-shadow: var(--glow);
