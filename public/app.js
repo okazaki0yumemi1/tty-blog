@@ -118,7 +118,7 @@
   }
 
   const HELP = [
-    ['ls | list', 'list folders and posts in the current folder'],
+    ['ls | list [folder]', 'list folders and posts (in current or given folder)'],
     ['cd <folder>', 'enter a folder (cd .. up, cd - back, cd = root)'],
     ['cat <page> | read <page>', 'open a post (name, number from ls, or path)'],
     ['tags', 'list all tags'],
@@ -140,7 +140,8 @@
 
   function fmtDate(d) { return d ? d.slice(0, 10) : '—'; }
 
-  function renderTable(list, { highlight = null } = {}) {
+  function renderTable(list, { highlight = null, base = undefined } = {}) {
+    const b = base === undefined ? cwd : base;
     if (!list.length) {
       print('<span class="dim">nothing here.</span>');
       lastList = [];
@@ -150,7 +151,7 @@
     const rows = list.map((p, i) => {
       const mark = highlight === p.file ? '<span class="ok">▶</span> ' : '&nbsp;&nbsp;';
       const tags = p.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join(' ') || '<span class="dim">—</span>';
-      const short = shortName(p);
+      const short = relName(p.file.replace(/\.md$/i, ''), b);
       return `<tr><td class="dim">${String(i + 1).padStart(2)}</td>` +
         `<td class="name">${mark}${esc(short)}</td>` +
         `<td>${esc(p.title)}</td><td class="dim">${fmtDate(p.date)}</td><td>${tags}</td></tr>`;
@@ -162,22 +163,44 @@
   async function cmdLs(args) {
     await refreshPosts();
     if (args[0] === '-t' || args[0] === '--tags') return cmdTags();
-    const inCwd = posts.filter((p) => {
+
+    // ls [path] — path resolves against the current folder, like bash
+    let dir = cwd;
+    const arg = args.join(' ').trim();
+    if (arg) {
+      if (arg.startsWith('-')) {
+        print(`<span class="err">ls: unrecognized option: ${esc(arg)}</span> <span class="dim">— try: ls [folder] | ls -t</span>`);
+        return;
+      }
+      const t = arg.replace(/^~\/?/, '/').replace(/\/+$/, '');
+      dir = resolvePath(cwd, t);
+      if (dir !== '' && !dirs.has(dir)) {
+        if (posts.some((p) => p.file.replace(/\.md$/i, '').toLowerCase() === dir.toLowerCase())) {
+          print(`<span class="err">ls: ${esc(arg)}: Not a directory</span> <span class="dim">— it is a post; try: cat ${esc(arg)}</span>`);
+        } else {
+          print(`<span class="err">ls: ${esc(arg)}: No such file or directory</span>`);
+        }
+        return;
+      }
+    }
+
+    const inDir = posts.filter((p) => {
       const d = p.file.includes('/') ? p.file.slice(0, p.file.lastIndexOf('/')) : '';
-      return d === cwd;
+      return d === dir;
     });
-    const subs = subDirs(cwd);
-    if (!inCwd.length && !subs.length) {
+    const subs = subDirs(dir);
+    if (arg) print(`<span class="dim">${esc(dir ? dir + '/' : './')}:</span>`); // bash prints "folder/:"
+    if (!inDir.length && !subs.length) {
       print('<span class="dim">nothing here.</span>');
       lastList = [];
       return;
     }
     if (subs.length) {
-      print('  ' + subs.map((d) => `<span class="dir">${esc(d)}/</span>`).join('   ') +
-        '  <span class="dim">← cd &lt;name&gt;</span>');
+      print('  ' + subs.map((d) => `<span class="dir">${esc(d.split('/').pop())}/</span>`).join('   ') +
+        '  <span class="dim">← cd into it, or ls &lt;folder&gt;/…</span>');
     }
-    if (inCwd.length) {
-      renderTable(inCwd);
+    if (inDir.length) {
+      renderTable(inDir, { base: dir });
     } else {
       lastList = [];
       if (subs.length) print('<span class="dim">no posts in this folder — cd into a folder above</span>');
@@ -210,10 +233,14 @@
     print(`<span class="err">cd: ${esc(t)}: No such file or directory</span>`);
   }
 
+  // name of a file stem relative to a base folder ('' = root)
+  function relName(stem, base) {
+    return base && stem.startsWith(base + '/') ? stem.slice(base.length + 1) : stem;
+  }
+
   // display/completion name of a post relative to the current folder
   function shortName(p) {
-    const stem = p.file.replace(/\.md$/i, '');
-    return cwd && stem.startsWith(cwd + '/') ? stem.slice(cwd.length + 1) : stem;
+    return relName(p.file.replace(/\.md$/i, ''), cwd);
   }
 
   function findPost(query) {
@@ -449,7 +476,7 @@
         return stem.startsWith(base) ? stem.slice(base.length) : stem;
       }).sort();
     }
-    if (/^cd$/i.test(cmdWord)) return subDirs(cwd).map((d) => d.slice(base.length));
+    if (/^(cd|ls|list)$/i.test(cmdWord)) return subDirs(cwd).map((d) => d.slice(base.length) + '/');
     if (/^tag$/i.test(cmdWord)) return [...new Set(posts.flatMap((p) => p.tags))].sort();
     return null;
   }
