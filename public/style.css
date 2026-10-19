@@ -37,8 +37,8 @@ body {
 }
 
 .terminal-window {
-  width: min(1280px, 100%);
-  height: min(88dvh, 900px); /* fits inside the viewport, so nothing to scroll */
+  width: min(1920px, 96%);           /* scales with the screen, sane cap on ultrawides */
+  height: min(90dvh, 1400px);        /* fills tall screens too, margins top/bottom */
   display: flex;
   flex-direction: column;
   background: var(--win-bg);
