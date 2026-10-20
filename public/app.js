@@ -546,11 +546,17 @@
     }
   });
 
-  // keep the input focused so typing (and mobile keyboards) work,
-  // without breaking text selection or letting focus scroll anything
-  const focusInput = () => cmdInput.focus({ preventScroll: true });
-  screen.addEventListener('mouseup', focusInput);
-  document.addEventListener('click', focusInput);
+  // keep the input focused so typing (and mobile keyboards) work — but never
+  // while the visitor is selecting/has selected text, or on right/middle click
+  const keepFocus = (e) => {
+    if (e && e.button !== undefined && e.button !== 0) return; // right/middle click
+    if (e && (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)) return; // shortcuts
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString()) return; // keep the selection alive
+    cmdInput.focus({ preventScroll: true });
+  };
+  screen.addEventListener('mouseup', keepFocus);
+  document.addEventListener('click', keepFocus);
   // any typing invalidates an in-progress completion/cycle
   cmdInput.addEventListener('input', () => { comp = null; });
 
@@ -582,5 +588,5 @@
   refreshPosts().then(() => {
     print(`<span class="dim">${posts.length} post(s) available. ${posts.length ? `Try: cat ${posts[0].file.replace(/\.md$/i, '')}` : ''}</span>`);
   });
-  focusInput();
+  keepFocus();
 })();
